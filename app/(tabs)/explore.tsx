@@ -1,110 +1,110 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import React from 'react';
+import { MapContainer, Marker, Popup, ScaleControl, TileLayer, ZoomControl } from 'react-leaflet';
+import { Dimensions, StyleSheet, View, useColorScheme } from 'react-native';
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { locationList } from '../../LocationList';
 
-export default function TabTwoScreen() {
+// Fix leaflet's default icon issue with webpack and React Native / Expo web
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
+
+// Custom marker icon using a common marker icon URL
+const customIcon = new L.Icon({
+  iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+  iconSize: [30, 30],
+  iconAnchor: [15, 30],
+  popupAnchor: [0, -30],
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+  shadowSize: [41, 41],
+  shadowAnchor: [12, 41],
+});
+
+const mapHeight = Dimensions.get('window').height;
+
+export default function ExploreScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  // Flatten all store locations from locationList
+  const allStores = locationList.flatMap(location => location.stores);
+
+  // Default center to first store or fallback coordinates
+  const center = allStores.length > 0 ? [allStores[0].point[0], allStores[0].point[1]] : [49.2827, -123.1207];
+
+  // Map tile URL and attribution for dark/light mode
+  // Temporarily use OpenStreetMap standard tiles for testing background visibility
+  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+  const tileAttribution = '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors';
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
+    <View style={[styles.container, isDark && styles.containerDark]}>
+      <MapContainer
+        center={center}
+        zoom={13}
+        style={styles.map}
+        zoomControl={false} // disable default zoom control to reposition
+      >
+        <TileLayer attribution={tileAttribution} url={tileUrl} />
+        {allStores.map((store, index) => {
+          // Validate point array and fallback to default coordinates if invalid
+          let position: [number, number] | undefined = undefined;
+          if (
+            Array.isArray(store.point) &&
+            store.point.length === 2 &&
+            typeof store.point[0] === 'number' &&
+            typeof store.point[1] === 'number'
+          ) {
+            position = [store.point[0], store.point[1]] as [number, number];
+          }
+          if (!position) {
+            return null; // Skip marker if position is invalid
+          }
+          return (
+            <Marker key={index} position={position as unknown as [number, number]} icon={customIcon}>
+              <Popup>
+                <div style={isDark ? styles.popupDark : styles.popup}>
+                  <strong>{store.name}</strong><br />
+                  {store.address}<br />
+                  {store.hours}
+                </div>
+              </Popup>
+            </Marker>
+          );
         })}
-      </Collapsible>
-    </ParallaxScrollView>
+        <ZoomControl position="topright" />
+        <ScaleControl position="bottomleft" />
+      </MapContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  containerDark: {
+    backgroundColor: '#121212',
+  },
+  map: {
+    height: mapHeight,
+    width: '100%',
+  },
+  popup: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#000',
+  },
+  popupDark: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#fff',
   },
 });
